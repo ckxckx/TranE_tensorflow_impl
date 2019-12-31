@@ -1,3 +1,4 @@
+#coding:utf-8
 import math
 import timeit
 import numpy as np
@@ -5,6 +6,12 @@ import tensorflow as tf
 import multiprocessing as mp
 from dataset import KnowledgeGraph
 
+#TransE 计算模型
+# 输入模型learning rate, learning rate, batch,size, embedding dimesion等参数
+# 1. 创建计算graph，任务包括
+#     向量初始化(确定维度，xavier初始化向量值，L1/L2泛化)
+#     根据算法计算单batch处理的损失值，配置优化算法
+# 2. session.run
 
 class TransE:
     def __init__(self, kg: KnowledgeGraph,
@@ -108,6 +115,7 @@ class TransE:
         return idx_head_prediction, idx_tail_prediction
 
     def launch_training(self, session, summary_writer):
+        #使用multiprocess.Queue进行进程间通信
         raw_batch_queue = mp.Queue()
         training_batch_queue = mp.Queue()
         for _ in range(self.n_generator):
@@ -126,8 +134,8 @@ class TransE:
         n_used_triple = 0
         for i in range(n_batch):
             batch_pos, batch_neg = training_batch_queue.get()
-            batch_loss, _, summary = session.run(fetches=[self.loss, self.train_op, self.merge],
-                                                 feed_dict={self.triple_pos: batch_pos,
+            batch_loss, _, summary = session.run(fetches=[self.loss, self.train_op, self.merge], #从计算图中取出计算结果
+                                                 feed_dict={self.triple_pos: batch_pos, #向计算图中写入tensor值
                                                             self.triple_neg: batch_neg,
                                                             self.margin: [self.margin_value] * len(batch_pos)})
             summary_writer.add_summary(summary, global_step=self.global_step.eval(session=session))
@@ -252,7 +260,7 @@ class TransE:
                             tail_rank_filter += 1
                 out_queue.put((head_rank_raw, tail_rank_raw, head_rank_filter, tail_rank_filter))
                 in_queue.task_done()
-
+    # L1/L2范化
     def check_norm(self, session):
         print('-----Check norm-----')
         entity_embedding = self.entity_embedding.eval(session=session)
